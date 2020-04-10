@@ -3,7 +3,6 @@ import urllib.request
 import subprocess as sp
 
 arn=sp.getoutput("kubectl config current-context")
-print(arn)
 clusterName=arn.split("/")[-1]
 
 def main():
