@@ -7,8 +7,7 @@ clusterName = arn.split("/")[-1]
 defaultPath = os.getcwd() + "/k8s"
 
 def main():
-    dispatcher = { 'all': createAll , 
-                   'cluster_autoscaler': createCA ,
+    dispatcher = { 'cluster_autoscaler': createCA ,
                    'horizontal_pod_autoscaler': createHPA,
                    'dashboard': createMetricServer
                 }
@@ -19,7 +18,13 @@ def main():
     # receive the arguments passed at the initailization of the command
     functions = buildArguments()
     
-    for f in functions:
+    # If the option 'all' selected, run all the functions available in the 'dispatcher' dict
+    if 'all' in functions:
+      for key in dispatcher:
+        dispatcher[key]()
+    # If not, run the function returned by the 'buildArguments' method
+    else:        
+      for f in functions:
         dispatcher[f]()
 
 
@@ -44,41 +49,42 @@ def createMetricServer():
     name = "metric-server"
     gistURL = 'https://github.com/kubernetes-sigs/metrics-server/' \
               'releases/download/v0.3.6/components.yaml'
-    cmd = """cat << EOF  > eks-admin-service-account.yaml
-    apiVersion: v1
-    kind: ServiceAccount
-    metadata:
-    name: eks-admin
-    namespace: kube-system
-    ---
-    apiVersion: rbac.authorization.k8s.io/v1beta1
-    kind: ClusterRoleBinding
-    metadata:
-    name: eks-admin
-    roleRef:
-    apiGroup: rbac.authorization.k8s.io
-    kind: ClusterRole
-    name: cluster-admin
-    subjects:
-    - kind: ServiceAccount
-    name: eks-admin
-    namespace: kube-system
-    EOF"""
+    cmd = ''
 
     setDeafultConfig(name,gistURL,cmd)
     # Create metric Server and Dashboard 
     createDashboard()
 
 
- #  K8s-dashboard 
+# K8s-dashboard 
 def createDashboard():
     print("Installing Dashboard")
     name = 'dashboard'
     gistURL = 'https://raw.githubusercontent.com/kubernetes/dashboard/' \
             'v2.0.0-beta8/aio/deploy/recommended.yaml'
-    cmd = ''
+    cmd = """cat << EOF  > eks-admin-service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+name: eks-admin
+namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+name: eks-admin
+roleRef:
+apiGroup: rbac.authorization.k8s.io
+kind: ClusterRole
+name: cluster-admin
+subjects:
+- kind: ServiceAccount
+name: eks-admin
+namespace: kube-system"""
+        
     # Create service account: https://docs.aws.amazon.com/eks/latest/userguide/dashboard-tutorial.html
     setDeafultConfig(name,gistURL,cmd)
+
     os.system("kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep eks-admin | awk '{print $1}')")
 
 
